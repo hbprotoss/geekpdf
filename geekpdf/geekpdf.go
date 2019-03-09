@@ -3,8 +3,6 @@ package geekpdf
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
@@ -40,7 +38,7 @@ func (g *GeekTime) Login() (loginResp *LoginResp, err error) {
 		Password:  g.Password,
 		Country:   86,
 		Remember:  1,
-		Platform:  3,
+		Platform:  4,
 		Appid:     1,
 	}
 	header := &http.Header{}
@@ -60,7 +58,7 @@ func (g *GeekTime) Login() (loginResp *LoginResp, err error) {
 	return
 }
 
-func (g *GeekTime) Articles(cid int) (err error) {
+func (g *GeekTime) Articles(cid int) (articles []*ArticleResp, err error) {
 	url := "https://time.geekbang.org/serv/v1/column/articles"
 	body := &ArticleReq{
 		Cid:    cid,
@@ -70,7 +68,16 @@ func (g *GeekTime) Articles(cid int) (err error) {
 		Sample: false,
 	}
 	response, err := g.post(url, body)
-	fmt.Printf("%v", response)
+	if err != nil {
+		return nil, errors.New("get articles failed")
+	}
+
+	data := GeekList{}
+	err = g.parseResponse(response, &data)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(data.List, &articles)
 	return
 }
 
@@ -96,24 +103,30 @@ func (g *GeekTime) postWithHeader(url string, body interface{}, header *http.Hea
 }
 
 func (g *GeekTime) makeRequest(url string, body interface{}) (request *http.Request, err error) {
+	if needLogin(url) && g.cookies == nil {
+		return nil, errors.New("need login")
+	}
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return nil, errors.Wrap(err, "json marshal error")
 	}
 
 	request, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
-	request.Header.Add("Content-Type", "application/json; charset=utf-8")
-	request.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36")
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Origin", "https://time.geekbang.org")
 
-	if g.cookies != nil {
-		for _, cookie := range g.cookies {
-			request.AddCookie(cookie)
-		}
+	for _, cookie := range g.cookies {
+		request.AddCookie(cookie)
 	}
 	return
 }
 
 func (g *GeekTime) parseResponse(resp *http.Response, output interface{}) (err error) {
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("http code " + resp.Status)
+	}
+
 	defer resp.Body.Close()
 	raw, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -125,8 +138,14 @@ func (g *GeekTime) parseResponse(resp *http.Response, output interface{}) (err e
 	if err != nil {
 		return errors.Wrap(err, "parse outer response error")
 	}
+
 	if geek.Code != 0 {
-		return errors.New(geek.Error.Msg)
+		gerr := &GeekError{}
+		err = json.Unmarshal(geek.Error, gerr)
+		if err != nil {
+			return errors.Wrap(err, "parse error msg failed")
+		}
+		return errors.New(gerr.Msg)
 	}
-	return mapstructure.Decode(geek.Data, output)
+	return json.Unmarshal(geek.Data, output)
 }
