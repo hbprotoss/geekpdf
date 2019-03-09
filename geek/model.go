@@ -1,4 +1,4 @@
-package geekpdf
+package geek
 
 import "encoding/json"
 

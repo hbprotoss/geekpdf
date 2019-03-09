@@ -1,9 +1,17 @@
 package main
 
 import (
-	"geekpdf/geekpdf"
+	"flag"
+	"geekpdf/geek"
 	log "github.com/sirupsen/logrus"
 	"os"
+)
+
+var (
+	cellphone string
+	password  string
+	path      string
+	cid       int
 )
 
 func main() {
@@ -12,12 +20,7 @@ func main() {
 		log.WithError(err).Error("init failed")
 	}
 
-	cellphone := "xx"
-	password := "xx"
-	path := "/Users/hbprotoss/Downloads/geek/"
-	cid := 139
-
-	g := geekpdf.NewGeekTime(cellphone, password)
+	g := geek.NewGeekTime(cellphone, password)
 
 	loginResp, err := g.Login()
 	if err != nil {
@@ -54,7 +57,7 @@ func main() {
 		}).Info("Loading article success")
 
 		pdfPath := path + article.ArticleTitle + ".pdf"
-		err = geekpdf.SaveArticleAsPdf(article.ArticleContent, pdfPath)
+		err = geek.SaveArticleAsPdf(article.ArticleContent, pdfPath)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"title":    article.ArticleTitle,
@@ -72,6 +75,8 @@ func main() {
 
 func Init() (err error) {
 	initLog()
+	initCmd()
+	initApp()
 	return nil
 }
 
@@ -80,4 +85,28 @@ func initLog() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 	log.SetReportCaller(true)
+}
+
+func initCmd() {
+	flag.StringVar(&cellphone, "c", "", "Cellphone")
+	flag.StringVar(&password, "w", "", "Password")
+	flag.StringVar(&path, "p", "pdf/", "Path to store pdf")
+	flag.IntVar(&cid, "i", 0, "Product ID")
+	flag.Parse()
+
+	if cellphone == "" || password == "" {
+		log.Error("Invalid cellphone or password")
+		os.Exit(1)
+	}
+}
+
+func initApp() {
+	if _, err := os.Stat(path); err == nil {
+		return
+	}
+	err := os.Mkdir(path, 0755)
+	if err != nil {
+		log.WithError(err).Error("Can not init dir for saving pdf")
+		os.Exit(1)
+	}
 }
