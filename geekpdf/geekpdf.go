@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type GeekTime struct {
@@ -39,7 +40,7 @@ func (g *GeekTime) Login() (loginResp *LoginResp, err error) {
 		Country:   86,
 		Remember:  1,
 		Platform:  4,
-		Appid:     1,
+		AppId:     1,
 	}
 	header := &http.Header{}
 	header.Add("Referer", "https://account.geekbang.org/login?redirect=https%3A%2F%2Ftime.geekbang.org%2F")
@@ -58,9 +59,9 @@ func (g *GeekTime) Login() (loginResp *LoginResp, err error) {
 	return
 }
 
-func (g *GeekTime) Articles(cid int) (articles []*ArticleResp, err error) {
+func (g *GeekTime) ArticleList(cid int) (articles []*ArticleListResp, err error) {
 	url := "https://time.geekbang.org/serv/v1/column/articles"
-	body := &ArticleReq{
+	body := &ArticleListReq{
 		Cid:    cid,
 		Size:   100,
 		Prev:   0,
@@ -69,7 +70,7 @@ func (g *GeekTime) Articles(cid int) (articles []*ArticleResp, err error) {
 	}
 	response, err := g.post(url, body)
 	if err != nil {
-		return nil, errors.New("get articles failed")
+		return nil, errors.New("get article list failed")
 	}
 
 	data := GeekList{}
@@ -78,6 +79,24 @@ func (g *GeekTime) Articles(cid int) (articles []*ArticleResp, err error) {
 		return nil, err
 	}
 	err = json.Unmarshal(data.List, &articles)
+	return
+}
+
+func (g *GeekTime) Article(id int) (article *ArticleResp, err error) {
+	url := "https://time.geekbang.org/serv/v1/article"
+	body := &ArticleReq{
+		ID: strconv.Itoa(id),
+	}
+	response, err := g.post(url, body)
+	if err != nil {
+		return nil, errors.New("get article failed")
+	}
+
+	article = &ArticleResp{}
+	err = g.parseResponse(response, article)
+	if err != nil {
+		return nil, err
+	}
 	return
 }
 
