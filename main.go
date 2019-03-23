@@ -5,6 +5,11 @@ import (
 	"geekpdf/geek"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"sync"
+)
+
+const (
+	articleDownloaderCount = 10
 )
 
 var (
@@ -12,6 +17,9 @@ var (
 	password  string
 	path      string
 	cid       int
+
+	articleChan chan *geek.ArticleListResp
+	wg          sync.WaitGroup
 )
 
 func main() {
@@ -42,8 +50,24 @@ func main() {
 		"count":     len(articleList),
 	}).Info("Loading article list success")
 
-	for _, article := range articleList {
-		article, err := g.Article(article.ID)
+	// init handling chan
+	initChan(g)
+
+	for _, articleItem := range articleList {
+		articleChan <- articleItem
+	}
+	wg.Wait()
+}
+
+func downloadArticle(g *geek.GeekTime, articles chan *geek.ArticleListResp, wg *sync.WaitGroup) {
+	for {
+		articleItem, ok := <-articles
+		if !ok {
+			wg.Done()
+			return
+		}
+
+		article, err := g.Article(articleItem.ID)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"articleId": article.ID,
@@ -109,4 +133,13 @@ func initApp() {
 		log.WithError(err).Error("Can not init dir for saving pdf")
 		os.Exit(1)
 	}
+}
+
+func initChan(g *geek.GeekTime) {
+	articleChan = make(chan *geek.ArticleListResp)
+
+	for i := 0; i < articleDownloaderCount; i++ {
+		go downloadArticle(g, articleChan, &wg)
+	}
+
 }
