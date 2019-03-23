@@ -4,12 +4,16 @@ import (
 	"flag"
 	"geekpdf/geek"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 	"sync"
 )
 
 const (
 	articleDownloaderCount = 10
+	audioDownloaderCount   = 10
 )
 
 var (
@@ -18,8 +22,10 @@ var (
 	path      string
 	cid       int
 
-	articleChan chan *geek.ArticleListResp
-	wg          sync.WaitGroup
+	articleChan      chan *geek.ArticleListResp
+	articleWaitGroup sync.WaitGroup
+	audioChan        chan *geek.ArticleResp
+	audioWaitGroup   sync.WaitGroup
 )
 
 func main() {
@@ -54,46 +60,79 @@ func main() {
 	initChan(g)
 
 	for _, articleItem := range articleList {
+		articleWaitGroup.Add(1)
 		articleChan <- articleItem
 	}
-	wg.Wait()
+	articleWaitGroup.Wait()
+	audioWaitGroup.Wait()
 }
 
 func downloadArticle(g *geek.GeekTime, articles chan *geek.ArticleListResp, wg *sync.WaitGroup) {
-	for {
-		articleItem, ok := <-articles
-		if !ok {
-			wg.Done()
-			return
-		}
+	articleItem := <-articles
+	defer wg.Done()
 
-		article, err := g.Article(articleItem.ID)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"articleId": article.ID,
-				"title":     article.ArticleTitle,
-			}).Error("Loading article failed")
-			continue
-		}
-		log.WithFields(log.Fields{
+	article, err := g.Article(articleItem.ID)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
 			"articleId": article.ID,
 			"title":     article.ArticleTitle,
-		}).Info("Loading article success")
+		}).Error("Loading article failed")
+		return
+	}
+	log.WithFields(log.Fields{
+		"articleId": article.ID,
+		"title":     article.ArticleTitle,
+	}).Info("Loading article success")
 
-		pdfPath := path + article.ArticleTitle + ".pdf"
-		err = geek.SaveArticleAsPdf(article.ArticleContent, pdfPath)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"title":    article.ArticleTitle,
-				"filePath": pdfPath,
-			}).Error("Save pdf failed")
-			continue
-		}
-		log.WithFields(log.Fields{
-			"articleId": article.ID,
-			"title":     article.ArticleTitle,
-			"filePath":  pdfPath,
-		}).Info("Save pdf success")
+	// download audio
+	audioWaitGroup.Add(1)
+	audioChan <- article
+
+	pdfPath := path + article.ArticleTitle + ".pdf"
+	err = geek.SaveArticleAsPdf(article.ArticleContent, pdfPath)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"title":    article.ArticleTitle,
+			"filePath": pdfPath,
+		}).Error("Save pdf failed")
+		return
+	}
+	log.WithFields(log.Fields{
+		"articleId": article.ID,
+		"title":     article.ArticleTitle,
+		"filePath":  pdfPath,
+	}).Info("Save pdf success")
+}
+
+func downloadAudio(articles chan *geek.ArticleResp, wg *sync.WaitGroup) {
+	article := <-articles
+	defer wg.Done()
+
+	url := strings.ReplaceAll(article.AudioDownloadURL, "\\/", "/")
+	resp, err := http.Get(url)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"url": url,
+		}).Error("Http request failed")
+		return
+	}
+	defer resp.Body.Close()
+
+	audioPath := path + article.ArticleTitle + ".mp3"
+	file, err := os.OpenFile(audioPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"path": audioPath,
+		}).Error("Create file failed")
+		return
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"path": audioPath,
+		}).Error("Write file failed")
 	}
 }
 
@@ -122,6 +161,10 @@ func initCmd() {
 		log.Error("Invalid cellphone or password")
 		os.Exit(1)
 	}
+
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
 }
 
 func initApp() {
@@ -137,9 +180,21 @@ func initApp() {
 
 func initChan(g *geek.GeekTime) {
 	articleChan = make(chan *geek.ArticleListResp)
-
 	for i := 0; i < articleDownloaderCount; i++ {
-		go downloadArticle(g, articleChan, &wg)
+		go func() {
+			for {
+				downloadArticle(g, articleChan, &articleWaitGroup)
+			}
+		}()
+	}
+
+	audioChan = make(chan *geek.ArticleResp)
+	for i := 0; i < audioDownloaderCount; i++ {
+		go func() {
+			for {
+				downloadAudio(audioChan, &audioWaitGroup)
+			}
+		}()
 	}
 
 }
