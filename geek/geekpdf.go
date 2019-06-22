@@ -134,6 +134,7 @@ func (g *GeekTime) makeRequest(url string, body interface{}) (request *http.Requ
 	request, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Origin", "https://time.geekbang.org")
+	request.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36")
 
 	for _, cookie := range g.cookies {
 		request.AddCookie(cookie)

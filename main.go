@@ -5,6 +5,7 @@ import (
 	"geekpdf/geek"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"time"
 )
 
 var (
@@ -12,6 +13,7 @@ var (
 	password  string
 	path      string
 	cid       int
+	sleep     int
 )
 
 func main() {
@@ -43,12 +45,12 @@ func main() {
 		"count":     len(articleList),
 	}).Info("Loading article list success")
 
-	for _, article := range articleList {
-		article, err := g.Article(article.ID)
+	for _, a := range articleList {
+		article, err := g.Article(a.ID)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
-				"articleId": article.ID,
-				"title":     article.ArticleTitle,
+				"articleId": a.ID,
+				"title":     a.ArticleTitle,
 			}).Error("Loading article failed")
 			continue
 		}
@@ -71,6 +73,7 @@ func main() {
 			"title":     article.ArticleTitle,
 			"filePath":  pdfPath,
 		}).Info("Save pdf success")
+		time.Sleep(time.Second * time.Duration(sleep))
 	}
 }
 
@@ -93,6 +96,7 @@ func initCmd() {
 	flag.StringVar(&password, "w", "", "Password")
 	flag.StringVar(&path, "p", "pdf/", "Path to store pdf")
 	flag.IntVar(&cid, "i", 0, "Product ID")
+	flag.IntVar(&sleep, "t", 5, "Request Time Sleep")
 	flag.Parse()
 
 	if cellphone == "" || password == "" {
