@@ -14,6 +14,7 @@ var (
 	path      string
 	cid       int
 	sleep     int
+	deletepic bool
 )
 
 func main() {
@@ -60,7 +61,7 @@ func main() {
 		}).Info("Loading article success")
 
 		pdfPath := path + article.ArticleTitle + ".pdf"
-		err = geek.SaveArticleAsPdf(article.ArticleContent, pdfPath)
+		err = geek.SaveArticleAsPdf(geek.DeletePic(deletepic, article.ArticleContent), pdfPath)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"title":    article.ArticleTitle,
@@ -97,6 +98,7 @@ func initCmd() {
 	flag.StringVar(&path, "p", "pdf/", "Path to store pdf")
 	flag.IntVar(&cid, "i", 0, "Product ID")
 	flag.IntVar(&sleep, "t", 5, "Request Time Sleep")
+	flag.BoolVar(&deletepic, "d", false, "Delete Bottom Pic")
 	flag.Parse()
 
 	if cellphone == "" || password == "" {

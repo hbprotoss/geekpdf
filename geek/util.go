@@ -6,6 +6,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+func DeletePic(use bool, article string) string {
+	if use && article[len(article)-114:len(article)-107] == "<p><img" {
+		return article[:len(article)-114]
+	}
+	return article
+}
+
 func SaveArticleAsPdf(article string, path string) (err error) {
 	if article == "" {
 		return errors.New("article is empty")

@@ -25,6 +25,7 @@ $ ./geekpdf -h
 Usage of ./geekpdf:
   -c string
         Cellphone
+  -d    Delete Bottom Pic
   -i int
         Product ID
   -p string
