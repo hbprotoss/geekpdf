@@ -5,6 +5,7 @@ import (
 	"geekpdf/geek"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"time"
 )
 
 var (
@@ -12,6 +13,8 @@ var (
 	password  string
 	path      string
 	cid       int
+	sleep     int
+	deletepic bool
 )
 
 func main() {
@@ -43,12 +46,12 @@ func main() {
 		"count":     len(articleList),
 	}).Info("Loading article list success")
 
-	for _, article := range articleList {
-		article, err := g.Article(article.ID)
+	for _, a := range articleList {
+		article, err := g.Article(a.ID)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
-				"articleId": article.ID,
-				"title":     article.ArticleTitle,
+				"articleId": a.ID,
+				"title":     a.ArticleTitle,
 			}).Error("Loading article failed")
 			continue
 		}
@@ -58,7 +61,7 @@ func main() {
 		}).Info("Loading article success")
 
 		pdfPath := path + article.ArticleTitle + ".pdf"
-		err = geek.SaveArticleAsPdf(article.ArticleContent, pdfPath)
+		err = geek.SaveArticleAsPdf(geek.DeletePic(deletepic, article.ArticleContent), pdfPath)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"title":    article.ArticleTitle,
@@ -71,6 +74,7 @@ func main() {
 			"title":     article.ArticleTitle,
 			"filePath":  pdfPath,
 		}).Info("Save pdf success")
+		time.Sleep(time.Second * time.Duration(sleep))
 	}
 }
 
@@ -93,6 +97,8 @@ func initCmd() {
 	flag.StringVar(&password, "w", "", "Password")
 	flag.StringVar(&path, "p", "pdf/", "Path to store pdf")
 	flag.IntVar(&cid, "i", 0, "Product ID")
+	flag.IntVar(&sleep, "t", 5, "Request Time Sleep")
+	flag.BoolVar(&deletepic, "d", false, "Delete Bottom Pic")
 	flag.Parse()
 
 	if cellphone == "" || password == "" {

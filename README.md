@@ -24,11 +24,17 @@ go get github.com/pkg/errors
 $ ./geekpdf -h
 Usage of ./geekpdf:
   -c string
-    	Cellphone
+        Cellphone
+  -d    Delete Bottom Pic
   -i int
-    	Product ID
+        Product ID
   -p string
-    	Path to store pdf (default "pdf/")
+        Path to store pdf (default "pdf/")
+  -t int
+        Request Time Sleep (default 5)
   -w string
-    	Password
+        Password
 ```
+
+### TODO
+[]: 太长的代码会被截断。
