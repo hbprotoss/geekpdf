@@ -3,10 +3,13 @@ package geek
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type GeekTime struct {
@@ -21,18 +24,88 @@ func (g *GeekTime) Cookies() []*http.Cookie {
 	return g.cookies
 }
 
-func NewGeekTime(cellphone string, password string) *GeekTime {
+func NewGeekTime(cellphone string, password string, cookieFile string) *GeekTime {
 	client := &http.Client{}
+	var cookies []*http.Cookie
+
+	if cookieFile != "" {
+		var err error
+		cookies, err = loadCookiesFromFile(cookieFile)
+		if err != nil {
+			panic("load cookies from file failed: " + err.Error())
+		}
+	}
 
 	return &GeekTime{
 		Cellphone: cellphone,
 		Password:  password,
-
-		client: client,
+		client:    client,
+		cookies:   cookies,
 	}
 }
 
+func loadCookiesFromFile(filePath string) ([]*http.Cookie, error) {
+	// Read the cookie file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read cookie file")
+	}
+
+	// Convert to string and trim whitespace
+	cookieStr := strings.TrimSpace(string(data))
+	if cookieStr == "" {
+		return nil, errors.New("cookie file is empty")
+	}
+
+	var cookies []*http.Cookie
+
+	// Split by semicolon to get individual cookie pairs
+	cookiePairs := strings.Split(cookieStr, ";")
+
+	for _, pair := range cookiePairs {
+		// Trim whitespace from each pair
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		// Split by the first equals sign to get name and value
+		parts := strings.SplitN(pair, "=", 2)
+		if len(parts) != 2 {
+			// Skip invalid cookie pairs
+			continue
+		}
+
+		name := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		if name == "" {
+			continue
+		}
+
+		// Create http.Cookie
+		cookie := &http.Cookie{
+			Name:  name,
+			Value: value,
+		}
+		cookies = append(cookies, cookie)
+	}
+
+	if len(cookies) == 0 {
+		return nil, errors.New("no valid cookies found in file")
+	}
+
+	return cookies, nil
+}
+
 func (g *GeekTime) Login() (loginResp *LoginResp, err error) {
+	if len(g.cookies) > 0 {
+		// already have cookies, skip login
+		return &LoginResp{
+			UID: 0,
+		}, nil
+	}
+
 	url := "https://account.geekbang.org/account/ticket/login"
 	body := &LoginReq{
 		Cellphone: g.Cellphone,
@@ -134,6 +207,7 @@ func (g *GeekTime) makeRequest(url string, body interface{}) (request *http.Requ
 	request, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Origin", "https://time.geekbang.org")
+	request.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/")
 
 	for _, cookie := range g.cookies {
 		request.AddCookie(cookie)

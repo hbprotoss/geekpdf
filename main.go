@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"geekpdf/geek"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -17,10 +18,11 @@ const (
 )
 
 var (
-	cellphone string
-	password  string
-	path      string
-	cid       int
+	cellphone  string
+	password   string
+	path       string
+	cid        int
+	cookieFile string
 
 	articleChan      chan *geek.ArticleListResp
 	articleWaitGroup sync.WaitGroup
@@ -34,7 +36,7 @@ func main() {
 		log.WithError(err).Error("init failed")
 	}
 
-	g := geek.NewGeekTime(cellphone, password)
+	g := geek.NewGeekTime(cellphone, password, cookieFile)
 
 	loginResp, err := g.Login()
 	if err != nil {
@@ -85,10 +87,10 @@ func downloadArticle(g *geek.GeekTime, articles chan *geek.ArticleListResp, wg *
 	}).Info("Loading article success")
 
 	// download audio
-	audioWaitGroup.Add(1)
-	audioChan <- article
+	//audioWaitGroup.Add(1)
+	//audioChan <- article
 
-	pdfPath := path + article.ArticleTitle + ".pdf"
+	pdfPath := path + strings.ReplaceAll(article.ArticleTitle, "/", "-") + ".pdf"
 	err = geek.SaveArticleAsPdf(article.ArticleContent, pdfPath)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -118,7 +120,7 @@ func downloadAudio(articles chan *geek.ArticleResp, wg *sync.WaitGroup) {
 	}
 	defer resp.Body.Close()
 
-	audioPath := path + article.ArticleTitle + ".mp3"
+	audioPath := path + strings.ReplaceAll(article.ArticleTitle, "/", "-") + ".mp3"
 	file, err := os.OpenFile(audioPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
@@ -155,6 +157,7 @@ func initCmd() {
 	flag.StringVar(&password, "w", "", "Password")
 	flag.StringVar(&path, "p", "pdf/", "Path to store pdf")
 	flag.IntVar(&cid, "i", 0, "Product ID")
+	flag.StringVar(&cookieFile, "f", "", "Cookie file")
 	flag.Parse()
 
 	if cellphone == "" || password == "" {

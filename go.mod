@@ -1,6 +1,6 @@
 module geekpdf
 
-go 1.12
+go 1.25
 
 require (
 	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.4.0
