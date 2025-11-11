@@ -34,6 +34,7 @@ func main() {
 	err := Init()
 	if err != nil {
 		log.WithError(err).Error("init failed")
+		return
 	}
 
 	g := geek.NewGeekTime(cellphone, password, cookieFile)
