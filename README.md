@@ -6,16 +6,14 @@
 
 需要输入极客时间官网账号密码
 
-### wkhtmltopdf
-
-安装请参照官网: [https://wkhtmltopdf.org](https://wkhtmltopdf.org)
+本工具现在使用chromedp库进行HTML到PDF转换，基于Chrome/Chromium浏览器引擎，已不再依赖wkhtmltopdf。
 
 ### go依赖
 
+依赖管理通过Go modules自动处理，运行以下命令即可安装依赖：
+
 ```shell
-go get github.com/sirupsen/logrus
-go get github.com/SebastiaanKlippert/go-wkhtmltopdf
-go get github.com/pkg/errors
+go mod tidy
 ```
 
 ### 参数
