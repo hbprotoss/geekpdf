@@ -23,6 +23,8 @@ $ ./geekpdf -h
 Usage of ./geekpdf:
   -c string
     	Cellphone
+  -f string
+    	Cookie file (optional, bypasses login if provided)
   -i int
     	Product ID
   -p string
