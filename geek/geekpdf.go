@@ -3,14 +3,35 @@ package geek
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
+
+var randomSource = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+// getRandomUserAgent returns a random user agent string from available browsers with randomized version numbers
+func getRandomUserAgent() string {
+	// Generate random major versions (80+ to ensure 2020+ compatibility)
+	chromeVersion := randomSource.Intn(20) + 100  // Generates a number between 100-119
+	firefoxVersion := randomSource.Intn(25) + 115 // Generates a number between 115-139
+	edgeVersion := randomSource.Intn(20) + 100    // Generates a number between 100-119
+
+	// Format user agents with random versions
+	userAgents := []string{
+		fmt.Sprintf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.0.0 Safari/537.36", chromeVersion),
+		fmt.Sprintf("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:%d.0) Gecko/20100101 Firefox/%d.0", firefoxVersion, firefoxVersion),
+		fmt.Sprintf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.0.0 Safari/537.36 Edge/%d.0.0.0", chromeVersion, edgeVersion),
+	}
+	return userAgents[randomSource.Intn(len(userAgents))]
+}
 
 type GeekTime struct {
 	Cellphone string
@@ -207,7 +228,7 @@ func (g *GeekTime) makeRequest(url string, body interface{}) (request *http.Requ
 	request, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Origin", "https://time.geekbang.org")
-	request.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/")
+	request.Header.Add("User-Agent", getRandomUserAgent())
 
 	for _, cookie := range g.cookies {
 		request.AddCookie(cookie)

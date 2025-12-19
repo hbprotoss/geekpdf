@@ -77,8 +77,8 @@ func downloadArticle(g *geek.GeekTime, articles chan *geek.ArticleListResp, wg *
 	article, err := g.Article(articleItem.ID)
 	if err != nil {
 		log.WithError(err).WithFields(log.Fields{
-			"articleId": article.ID,
-			"title":     article.ArticleTitle,
+			"articleId": articleItem.ID,
+			"title":     articleItem.ArticleTitle,
 		}).Error("Loading article failed")
 		return
 	}
