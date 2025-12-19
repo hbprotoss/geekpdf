@@ -161,9 +161,19 @@ func initCmd() {
 	flag.StringVar(&cookieFile, "f", "", "Cookie file")
 	flag.Parse()
 
-	if cellphone == "" || password == "" {
-		log.Error("Invalid cellphone or password")
-		os.Exit(1)
+	if cookieFile == "" {
+		// 如果没有提供cookie文件，则必须提供手机号和密码
+		if cellphone == "" || password == "" {
+			log.Error("Invalid cellphone or password")
+			os.Exit(1)
+		}
+	} else {
+		// 如果提供了cookie文件，手机号和密码可以为空
+		// 但仍需确保cookie文件存在
+		if _, err := os.Stat(cookieFile); os.IsNotExist(err) {
+			log.WithError(err).WithField("cookieFile", cookieFile).Error("Cookie file does not exist")
+			os.Exit(1)
+		}
 	}
 
 	if !strings.HasSuffix(path, "/") {
